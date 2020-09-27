@@ -28,14 +28,12 @@ open System.Security.Cryptography
 
 type Payload = { Name: String; Admin: bool }
 
-
 let readKey file =
     let content = File.ReadAllText file
     content.Replace("-----BEGIN RSA PRIVATE KEY-----", "").Replace("-----END RSA PRIVATE KEY-----", "")
            .Replace("-----BEGIN PUBLIC KEY-----", "").Replace("-----END PUBLIC KEY-----", "").Replace("\r\n", "")
            .Replace("\n", "")
     |> Convert.FromBase64String
-
 
 let pubKey = readKey "key.pub"
 let privKey = readKey "key.priv"
@@ -74,13 +72,12 @@ let validate (token: string) pubKey =
                                       ValidateAudience = false,
                                       ValidateLifetime = false,
                                       ValidateIssuerSigningKey = true,
-                                      ValidIssuer = "",
-                                      ValidAudience = "",
                                       IssuerSigningKey = new RsaSecurityKey(rsa))
 
+    let handler = new JwtSecurityTokenHandler()
+    let mutable validatedToken: SecurityToken = upcast new JwtSecurityToken()
+
     try
-        let handler = new JwtSecurityTokenHandler()
-        let mutable validatedToken: SecurityToken = upcast new JwtSecurityToken()
         handler.ValidateToken(token, validationParameters, &validatedToken)
         |> ignore
         true
