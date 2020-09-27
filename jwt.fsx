@@ -9,8 +9,8 @@ Header
 
 Payload
 {
-  "name": "John Doe",
-  "admin": true
+  "Name": "John Doe",
+  "Admin": true
 }
 *)
 
@@ -26,24 +26,48 @@ open System.IdentityModel.Tokens.Jwt
 open Microsoft.IdentityModel.Tokens
 open System.Security.Cryptography
 
-type Payload = { name: String; admin: bool }
+type Payload = { Name: String; Admin: bool }
 
 
 let readKey file =
-    let content = File.ReadAllText "key.pub"
+    let content = File.ReadAllText file
     content.Replace("-----BEGIN RSA PRIVATE KEY-----", "").Replace("-----END RSA PRIVATE KEY-----", "")
            .Replace("-----BEGIN PUBLIC KEY-----", "").Replace("-----END PUBLIC KEY-----", "").Replace("\r\n", "")
            .Replace("\n", "")
     |> Convert.FromBase64String
 
-let token = File.ReadAllText("token.txt")
+
 let pubKey = readKey "key.pub"
+let privKey = readKey "key.priv"
+
+let sign payload privKey =
+    use rsa = RSA.Create()
+    let mutable bytesRead = 0
+    rsa.ImportRSAPrivateKey(new ReadOnlySpan<byte>(privKey), &bytesRead)
+
+    let crypProvFactory =
+        new CryptoProviderFactory(CacheSignatureProviders = false)
+
+    let signingCredentials =
+        new SigningCredentials(new RsaSecurityKey(rsa),
+                               SecurityAlgorithms.RsaSha256,
+                               CryptoProviderFactory = crypProvFactory)
+
+    let claims =
+        [| new Claim(nameof (payload.Name), payload.Name)
+           new Claim(nameof (payload.Admin), payload.Admin.ToString()) |]
+
+    let jwt =
+        new JwtSecurityToken(claims = claims, signingCredentials = signingCredentials)
+
+    let jwtHandler = new JwtSecurityTokenHandler()
+    jwtHandler.WriteToken(jwt)
+
 
 let validate (token: string) pubKey =
     use rsa = RSA.Create()
     let mutable bytesRead = 0
     rsa.ImportSubjectPublicKeyInfo(new ReadOnlySpan<byte>(pubKey), &bytesRead)
-    printfn $"{nameof bytesRead}: {bytesRead}"
 
     let validationParameters =
         new TokenValidationParameters(ValidateIssuer = false,
@@ -58,11 +82,18 @@ let validate (token: string) pubKey =
         let handler = new JwtSecurityTokenHandler()
         let mutable validatedToken: SecurityToken = upcast new JwtSecurityToken()
         handler.ValidateToken(token, validationParameters, &validatedToken)
+        |> ignore
         true
-    with :? System.Exception as e ->
-        printfn $"Exception: {e.Message}"
+    with ex ->
+        printfn $"Exception: {ex.Message}"
         false
 
-match validate token pubKey with
-| true -> "Is valid!"
-| false -> "Is invalid!"
+let payload = { Name = "John Doe"; Admin = true }
+printfn $"Payload: {payload}"
+
+let token = sign payload privKey
+printfn $"Signed JWT: {token}"
+
+let isValid = "Valid token"
+let isInvalid = "Invalid token"
+printfn $"Validate: {if validate token pubKey then isValid else isInvalid}"
