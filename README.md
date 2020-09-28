@@ -4,6 +4,8 @@ F# example for using RSA signing and validation for Json Web Tokens (JWT)
 
 The example script takes a payload and creates a JWT, signed with a RSA private key. It then validates the created token with the corresponding public key.
 
+Blog post with explanations: [F# JWT with RSA](https://secanablog.wordpress.com/2020/09/28/f-jwt-with-rsa/)
+
 ## Run
 
 Clone the repository and run the `jwt.fsx` file with `dotnet fsi jwt.fsx`.
