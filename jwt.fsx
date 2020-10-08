@@ -63,6 +63,7 @@ let sign payload privKey =
 
 
 let validate (token: string) pubKey =
+    CryptoProviderFactory.Default.CacheSignatureProviders <- false
     use rsa = RSA.Create()
     let mutable bytesRead = 0
     rsa.ImportSubjectPublicKeyInfo(new ReadOnlySpan<byte>(pubKey), &bytesRead)
